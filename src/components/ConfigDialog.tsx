@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
 import { PRESETS } from '../types/presets';
-import { readFileAsText } from '../utils/fileUtils';
+import { readFileAsText, readFileAsDataURL } from '../utils/fileUtils';
 import { detectConfigVersion, v3ToEditorState, v1ToEditorState } from '../utils/configSerializer';
+import { replaceTextureRefs } from '../utils/textureResolver';
 import type { EditorState } from '../types/editorState';
 
 interface Props {
@@ -9,6 +10,15 @@ interface Props {
   onClose: () => void;
   onLoadPreset: (presetId: string) => void;
   onLoadState: (state: EditorState) => void;
+}
+
+const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.avif'];
+
+function isImageFile(file: File): boolean {
+  return (
+    file.type.startsWith('image/') ||
+    IMAGE_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext))
+  );
 }
 
 export function ConfigDialog({ open, onClose, onLoadPreset, onLoadState }: Props) {
@@ -36,7 +46,6 @@ export function ConfigDialog({ open, onClose, onLoadPreset, onLoadState }: Props
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return v3ToEditorState(json as any);
     } else {
-      // V1 config — no image URLs available from paste/file, textures stay empty
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return v1ToEditorState(json as any, []);
     }
@@ -54,9 +63,32 @@ export function ConfigDialog({ open, onClose, onLoadPreset, onLoadState }: Props
     const files = fileInputRef.current?.files;
     if (files && files.length > 0) {
       try {
-        const text = await readFileAsText(files[0]!);
+        // Separate JSON configs from image files
+        const allFiles = Array.from(files);
+        const jsonFile = allFiles.find((f) => f.name.toLowerCase().endsWith('.json'));
+        const imageFiles = allFiles.filter(isImageFile);
+
+        if (!jsonFile) {
+          setError('No JSON config file found in selection');
+          return;
+        }
+
+        // Parse the config
+        const text = await readFileAsText(jsonFile);
         const json = JSON.parse(text);
-        onLoadState(parseConfig(json));
+        let state = parseConfig(json);
+
+        // If image files were uploaded alongside the config, map them by filename
+        if (imageFiles.length > 0) {
+          const urlMap = new Map<string, string>();
+          for (const imgFile of imageFiles) {
+            const dataUrl = await readFileAsDataURL(imgFile);
+            urlMap.set(imgFile.name, dataUrl);
+          }
+          state = replaceTextureRefs(state, urlMap);
+        }
+
+        onLoadState(state);
         handleClose();
       } catch {
         setError('Invalid JSON file');
@@ -97,8 +129,8 @@ export function ConfigDialog({ open, onClose, onLoadPreset, onLoadState }: Props
       </div>
 
       <div className="dialog-field">
-        <label>Upload JSON File (V1 or V3)</label>
-        <input ref={fileInputRef} type="file" accept=".json,application/json" />
+        <label>Upload config + images (select JSON and image files together)</label>
+        <input ref={fileInputRef} type="file" accept=".json,image/*" multiple />
       </div>
 
       <div className="dialog-field">
