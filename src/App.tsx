@@ -13,7 +13,7 @@ import { Toolbar } from './components/Toolbar';
 import { ParticleProperties } from './components/ParticleProperties';
 import { EmitterProperties } from './components/EmitterProperties';
 import { StageProperties } from './components/StageProperties';
-import { ImageManager } from './components/ImageManager';
+import { TextureBehaviorEditor } from './components/TextureBehaviorEditor';
 import { ConfigDialog } from './components/ConfigDialog';
 import { ImageDialog } from './components/ImageDialog';
 import './App.css';
@@ -36,7 +36,6 @@ export function App() {
 
     const hash = window.location.hash.replace('#', '');
 
-    // Try loading from localStorage (new format)
     const savedState = localStorage.getItem('editorState');
     if (hash) {
       handleLoadPreset(hash);
@@ -69,7 +68,6 @@ export function App() {
 
   // Push V3 config to PixiJS whenever state changes
   useEffect(() => {
-    // Skip if no textures configured
     const hasTex =
       (state.texture.variant === 'textureSingle' && state.texture.texture) ||
       (state.texture.variant === 'textureRandom' && state.texture.textures.length > 0) ||
@@ -127,44 +125,44 @@ export function App() {
     [dispatch],
   );
 
-  // Image management (works with texture behavior slot)
-  const imageUrls = useMemo(() => {
-    const tex = state.texture;
-    if (tex.variant === 'textureSingle') return tex.texture ? [tex.texture] : [];
-    if (tex.variant === 'textureRandom' || tex.variant === 'textureOrdered') return tex.textures;
-    return [];
-  }, [state.texture]);
-
+  // Handle image added from ImageDialog — routes into the texture behavior
   const handleAddImage = useCallback(
     (url: string) => {
       const tex = state.texture;
-      if (tex.variant === 'textureRandom') {
-        dispatch({ type: 'SET_TEXTURE', texture: { ...tex, textures: [...tex.textures, url] } });
-      } else if (tex.variant === 'textureOrdered') {
-        dispatch({ type: 'SET_TEXTURE', texture: { ...tex, textures: [...tex.textures, url] } });
-      } else if (tex.variant === 'textureSingle') {
-        dispatch({ type: 'SET_TEXTURE', texture: { variant: 'textureSingle', texture: url } });
-      } else {
-        // Switch to textureRandom if currently animated or other
-        dispatch({ type: 'SET_TEXTURE', texture: { variant: 'textureRandom', textures: [url] } });
-      }
-    },
-    [state.texture, dispatch],
-  );
-
-  const handleRemoveImage = useCallback(
-    (index: number) => {
-      const tex = state.texture;
-      if (tex.variant === 'textureRandom') {
-        dispatch({
-          type: 'SET_TEXTURE',
-          texture: { ...tex, textures: tex.textures.filter((_, i) => i !== index) },
-        });
-      } else if (tex.variant === 'textureOrdered') {
-        dispatch({
-          type: 'SET_TEXTURE',
-          texture: { ...tex, textures: tex.textures.filter((_, i) => i !== index) },
-        });
+      switch (tex.variant) {
+        case 'textureSingle':
+          dispatch({ type: 'SET_TEXTURE', texture: { variant: 'textureSingle', texture: url } });
+          break;
+        case 'textureRandom':
+          dispatch({ type: 'SET_TEXTURE', texture: { ...tex, textures: [...tex.textures, url] } });
+          break;
+        case 'textureOrdered':
+          dispatch({ type: 'SET_TEXTURE', texture: { ...tex, textures: [...tex.textures, url] } });
+          break;
+        case 'animatedSingle':
+          dispatch({
+            type: 'SET_TEXTURE',
+            texture: { ...tex, anim: { ...tex.anim, textures: [...tex.anim.textures, url] } },
+          });
+          break;
+        case 'animatedRandom': {
+          // Add to last animation, or create a new one
+          if (tex.anims.length === 0) {
+            dispatch({
+              type: 'SET_TEXTURE',
+              texture: {
+                ...tex,
+                anims: [{ framerate: 24, loop: false, textures: [url] }],
+              },
+            });
+          } else {
+            const anims = [...tex.anims];
+            const last = anims[anims.length - 1]!;
+            anims[anims.length - 1] = { ...last, textures: [...last.textures, url] };
+            dispatch({ type: 'SET_TEXTURE', texture: { ...tex, anims } });
+          }
+          break;
+        }
       }
     },
     [state.texture, dispatch],
@@ -179,12 +177,12 @@ export function App() {
           onLoad={() => setConfigDialogOpen(true)}
           onDownload={handleDownload}
         />
-        <ParticleProperties config={state} dispatch={dispatch} />
-        <ImageManager
-          imageUrls={imageUrls}
+        <TextureBehaviorEditor
+          texture={state.texture}
+          dispatch={dispatch}
           onAddImage={() => setImageDialogOpen(true)}
-          onRemoveImage={handleRemoveImage}
         />
+        <ParticleProperties config={state} dispatch={dispatch} />
         <EmitterProperties config={state} dispatch={dispatch} />
         <StageProperties stageColor={stageColor} onColorChange={setStageColor} />
       </Sidebar>

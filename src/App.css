@@ -247,17 +247,23 @@ input[type='checkbox'] {
   width: 100%;
 }
 
-/* Image Manager */
+/* Image Manager / Texture Editor */
 .image-manager {
   margin-bottom: 8px;
 }
 
-.image-list {
+.image-list,
+.image-list-full {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 6px;
   padding-left: 138px;
+}
+
+.image-list-full {
+  padding-left: 0;
+  margin-bottom: 8px;
 }
 
 .image-thumbnail {
@@ -295,6 +301,33 @@ input[type='checkbox'] {
 
 .image-thumbnail:hover .image-remove-btn {
   display: block;
+}
+
+.image-thumbnail-numbered {
+  position: relative;
+}
+
+.frame-number {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  background: rgba(0, 0, 0, 0.7);
+  color: #e94560;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 0 3px 0 0;
+  pointer-events: none;
+}
+
+.btn-danger {
+  background: #8b2035;
+  border-color: #a52a42;
+  color: #ffcdd2;
+}
+
+.btn-danger:hover {
+  background: #a52a42;
 }
 
 /* Dialogs */
