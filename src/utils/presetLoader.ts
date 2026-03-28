@@ -1,38 +1,33 @@
-import type { LegacyEmitterConfig } from '../types/config';
+import type { EditorState } from '../types/editorState';
+import { v1ToEditorState } from './configSerializer';
+import { PRESETS, IMAGE_MAP } from '../types/presets';
 
-const cache = new Map<string, LegacyEmitterConfig>();
-
-/**
- * Ensures color values have '#' prefix for the color picker UI.
- */
-function normalizeColors(config: LegacyEmitterConfig): LegacyEmitterConfig {
-  if (!config.color) return config;
-
-  const ensureHash = (c: string) => (c.startsWith('#') ? c : `#${c}`);
-
-  return {
-    ...config,
-    color: {
-      start: ensureHash(config.color.start),
-      end: ensureHash(config.color.end),
-    },
-  };
-}
+const cache = new Map<string, EditorState>();
 
 /**
- * Loads a preset emitter config by path. Caches results to avoid re-fetching.
+ * Loads a preset by ID and returns an EditorState.
+ * V1 preset configs are auto-converted via upgradeConfig → v3ToEditorState.
  */
-export async function loadPresetConfig(configPath: string): Promise<LegacyEmitterConfig> {
-  const cached = cache.get(configPath);
+export async function loadPreset(presetId: string): Promise<EditorState | null> {
+  const preset = PRESETS.find((p) => p.id === presetId);
+  if (!preset) return null;
+
+  const cached = cache.get(presetId);
   if (cached) return cached;
 
-  const response = await fetch(configPath);
+  const response = await fetch(preset.configPath);
   if (!response.ok) {
-    throw new Error(`Failed to load preset: ${configPath}`);
+    throw new Error(`Failed to load preset: ${preset.configPath}`);
   }
 
-  const raw = (await response.json()) as LegacyEmitterConfig;
-  const config = normalizeColors(raw);
-  cache.set(configPath, config);
-  return config;
+  const raw = await response.json();
+
+  // Resolve image URLs from preset's imageIds
+  const imageUrls = preset.imageIds
+    .map((id) => IMAGE_MAP[id])
+    .filter((url): url is string => !!url);
+
+  const state = v1ToEditorState(raw, imageUrls);
+  cache.set(presetId, state);
+  return state;
 }

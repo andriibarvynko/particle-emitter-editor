@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Particle Emitter Editor — a web-based interactive tool for creating PixiJS particle emitters. Users visually configure particle effects (alpha, scale, color, speed, rotation, spawn shape, etc.) with real-time preview and can export/import configurations as JSON.
+Particle Emitter Editor — a web-based interactive tool for creating PixiJS particle emitters. Users visually configure particle effects (alpha, scale, color, speed, rotation, spawn shape, etc.) with real-time preview and can export/import configurations as JSON (V1 legacy and V3 behavior-based formats).
 
 ## Commands
 
@@ -18,44 +18,67 @@ Particle Emitter Editor — a web-based interactive tool for creating PixiJS par
 ## Tech Stack
 
 - **PixiJS v8** — rendering engine (WebGL2/WebGPU, async init, Assets API)
-- **@barvynkoa/particle-emitter** — particle system (behavior-based config + legacy V1 format support via `upgradeConfig()`)
+- **@barvynkoa/particle-emitter** — particle system (22 behavior types, `upgradeConfig()` for V1→V3 conversion)
 - **React 19** + **TypeScript** — UI framework
 - **Vite** — build tool
-- **CSS** — plain CSS (no preprocessor, no modules)
 
 ## Architecture
 
-### Config format strategy
+### Internal format: EditorState with behavior slots
 
-The UI works with the **legacy V1 config format** (simple start/end pairs for alpha, scale, color, speed). Conversion to V3 behavior-based format happens only at the rendering boundary via `upgradeConfig()` in `src/utils/configAdapter.ts`. All 20 preset JSON files in `public/presets/` use this V1 format.
+The internal state uses `EditorState` (`src/types/editorState.ts`) with typed behavior slots per category. Each slot is a discriminated union — conflicts between behavior variants are structurally impossible.
+
+```
+EditorState = {
+  // Emitter-level: lifetime, frequency, maxParticles, pos, addAtBack, particlesPerWave, spawnChance
+  // Behavior slots (discriminated unions):
+  texture:  textureSingle | textureRandom | textureOrdered | animatedSingle | animatedRandom
+  alpha:    alpha (keyframes) | alphaStatic | none
+  scale:    scale (keyframes) | scaleStatic | none
+  color:    color (keyframes) | colorStatic | none
+  movement: moveSpeed | moveSpeedStatic | moveAcceleration | movePath | none
+  rotation: rotation | rotationStatic | noRotation | none
+  spawn:    spawnPoint | spawnBurst | spawnShape
+  blendMode: blendMode | none
+}
+```
 
 ### Data flow
 
 ```
-React form fields → useReducer (LegacyEmitterConfig) → useEffect → PixiEditor.loadConfig()
-                                                                          ↓
-                                                                    upgradeConfig() → Emitter
+UI → dispatch(EditorAction) → useReducer(EditorState)
+  → useMemo: editorStateToV3() → EmitterConfigV3
+    → PixiEditor.loadConfig(v3Config)
+    → localStorage persist
+    → export/download
 ```
+
+Import: V1 JSON → `upgradeConfig()` → V3 → `v3ToEditorState()` → EditorState
+Import: V3 JSON → `v3ToEditorState()` → EditorState
+Export: EditorState → `editorStateToV3()` → V3 JSON download
 
 ### Key source files
 
-- `src/App.tsx` — Root component: owns config state, image state, wires PixiEditor to React UI
-- `src/pixi/PixiEditor.ts` — Pure PixiJS class (no React): Application init, Emitter lifecycle, mouse tracking, background
-- `src/pixi/usePixiEditor.ts` — React hook managing PixiEditor lifecycle, exposes `loadConfig()` and `setBackgroundColor()`
-- `src/hooks/useEmitterConfig.ts` — `useReducer` with typed actions for every config property group
-- `src/utils/configAdapter.ts` — `legacyToV3()` wraps `upgradeConfig()` from the particle library
-- `src/types/config.ts` — `LegacyEmitterConfig` interface + `DEFAULT_CONFIG`
-- `src/types/presets.ts` — `PRESETS[]`, `IMAGE_MAP`, `ALL_IMAGE_OPTIONS` constants (compiled from old config.json)
+- `src/types/editorState.ts` — `EditorState`, all behavior union types, `DEFAULT_EDITOR_STATE`
+- `src/utils/configSerializer.ts` — `editorStateToV3()`, `v3ToEditorState()`, `v1ToEditorState()`, `extractTextureUrls()`, `detectConfigVersion()`
+- `src/hooks/useEditorState.ts` — `useReducer` with 17 typed actions (SET_STATE + 8 emitter props + 8 behavior slots)
+- `src/App.tsx` — Root component: owns EditorState, computes V3 via useMemo, wires PixiEditor
+- `src/pixi/PixiEditor.ts` — Pure PixiJS class: accepts `EmitterConfigV3` directly, extracts texture URLs for pre-loading
+- `src/pixi/usePixiEditor.ts` — React hook managing PixiEditor lifecycle
+- `src/types/presets.ts` — `PRESETS[]`, `IMAGE_MAP` constants
+
+### Color normalization
+
+Library uses bare hex (`"ff0000"`), UI uses `"#ff0000"`. Conversion happens in `configSerializer.ts` at the serialization boundary (`stripHash` / `ensureHash`).
 
 ### Key directories
 
 - `public/images/` — 14 particle PNG sprites
-- `public/presets/` — 20 preset emitter JSON configs (V1 format)
+- `public/presets/` — 20 preset emitter JSON configs (V1 format, auto-converted on load)
 - `src/components/` — React components (form sections, dialogs, reusable inputs)
 - `src/hooks/` — State management hooks
-- `src/utils/` — Config adapter, file utilities, preset loader
-- `deploy/` — Legacy build output (kept for reference, not used by new build)
+- `src/utils/` — Config serializer, file utilities, preset loader
 
 ### Data persistence
 
-Native `localStorage` with keys: `customConfig`, `customImages`, `stageColor`. Debounced writes (300ms).
+Native `localStorage` with key `editorState` (JSON-serialized EditorState). Stage color stored separately as `stageColor`. Debounced writes (300ms).

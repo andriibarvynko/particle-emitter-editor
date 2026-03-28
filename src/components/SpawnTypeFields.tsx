@@ -1,168 +1,102 @@
 import type { Dispatch } from 'react';
-import type { LegacyEmitterConfig } from '../types/config';
-import type { ConfigAction } from '../hooks/useEmitterConfig';
+import type { EditorState } from '../types/editorState';
+import type { EditorAction } from '../hooks/useEditorState';
 import { NumberInput } from './NumberInput';
 
 interface Props {
-  config: LegacyEmitterConfig;
-  dispatch: Dispatch<ConfigAction>;
+  config: EditorState;
+  dispatch: Dispatch<EditorAction>;
 }
 
 export function SpawnTypeFields({ config, dispatch }: Props) {
-  switch (config.spawnType) {
-    case 'rect':
-      return (
-        <>
-          <div className="form-row">
-            <label className="form-label" title="Rectangle relative to spawn position">
-              Emission Rectangle
-            </label>
-            <div className="form-field form-field-pair">
-              <NumberInput
-                value={config.spawnRect?.x ?? 0}
-                onChange={(v) => dispatch({ type: 'SET_SPAWN_RECT', x: v })}
-                tooltip="X Position"
-              />
-              <NumberInput
-                value={config.spawnRect?.y ?? 0}
-                onChange={(v) => dispatch({ type: 'SET_SPAWN_RECT', y: v })}
-                tooltip="Y Position"
-              />
-            </div>
-          </div>
-          <div className="form-row">
-            <label className="form-label">&nbsp;</label>
-            <div className="form-field form-field-pair">
-              <NumberInput
-                value={config.spawnRect?.w ?? 0}
-                onChange={(v) => dispatch({ type: 'SET_SPAWN_RECT', w: v })}
-                tooltip="Width"
-              />
-              <NumberInput
-                value={config.spawnRect?.h ?? 0}
-                onChange={(v) => dispatch({ type: 'SET_SPAWN_RECT', h: v })}
-                tooltip="Height"
-              />
-            </div>
-          </div>
-        </>
-      );
+  const spawn = config.spawn;
 
-    case 'circle':
-      return (
-        <>
-          <div className="form-row">
-            <label className="form-label" title="Circle relative to spawn position">
-              Emission Circle
-            </label>
-            <div className="form-field form-field-pair">
-              <NumberInput
-                value={config.spawnCircle?.x ?? 0}
-                onChange={(v) => dispatch({ type: 'SET_SPAWN_CIRCLE', x: v })}
-                tooltip="X Position"
-              />
-              <NumberInput
-                value={config.spawnCircle?.y ?? 0}
-                onChange={(v) => dispatch({ type: 'SET_SPAWN_CIRCLE', y: v })}
-                tooltip="Y Position"
-              />
-            </div>
-          </div>
-          <div className="form-row">
-            <label className="form-label">&nbsp;</label>
-            <div className="form-field">
-              <NumberInput
-                value={config.spawnCircle?.r ?? 0}
-                onChange={(v) => dispatch({ type: 'SET_SPAWN_CIRCLE', r: v })}
-                min={0}
-                tooltip="Radius"
-              />
-            </div>
-          </div>
-        </>
-      );
+  if (spawn.variant === 'spawnShape' && spawn.shape.type === 'rect') {
+    const s = spawn.shape;
+    const update = (patch: Partial<typeof s>) =>
+      dispatch({ type: 'SET_SPAWN', spawn: { variant: 'spawnShape', shape: { ...s, ...patch } } });
 
-    case 'ring':
-      return (
-        <>
-          <div className="form-row">
-            <label className="form-label" title="Ring relative to spawn position">
-              Emission Ring
-            </label>
-            <div className="form-field form-field-pair">
-              <NumberInput
-                value={config.spawnCircle?.x ?? 0}
-                onChange={(v) => dispatch({ type: 'SET_SPAWN_CIRCLE', x: v })}
-                tooltip="X Position"
-              />
-              <NumberInput
-                value={config.spawnCircle?.y ?? 0}
-                onChange={(v) => dispatch({ type: 'SET_SPAWN_CIRCLE', y: v })}
-                tooltip="Y Position"
-              />
-            </div>
+    return (
+      <>
+        <div className="form-row">
+          <label className="form-label">Rect Position</label>
+          <div className="form-field form-field-pair">
+            <NumberInput value={s.x} onChange={(v) => update({ x: v })} tooltip="X" />
+            <NumberInput value={s.y} onChange={(v) => update({ y: v })} tooltip="Y" />
           </div>
-          <div className="form-row">
-            <label className="form-label">&nbsp;</label>
-            <div className="form-field form-field-pair">
-              <NumberInput
-                value={config.spawnCircle?.minR ?? 0}
-                onChange={(v) => dispatch({ type: 'SET_SPAWN_CIRCLE', minR: v })}
-                min={0}
-                tooltip="Minimum Radius"
-              />
-              <NumberInput
-                value={config.spawnCircle?.r ?? 0}
-                onChange={(v) => dispatch({ type: 'SET_SPAWN_CIRCLE', r: v })}
-                min={0}
-                tooltip="Maximum Radius"
-              />
-            </div>
+        </div>
+        <div className="form-row">
+          <label className="form-label">Rect Size</label>
+          <div className="form-field form-field-pair">
+            <NumberInput value={s.w} onChange={(v) => update({ w: v })} tooltip="Width" />
+            <NumberInput value={s.h} onChange={(v) => update({ h: v })} tooltip="Height" />
           </div>
-        </>
-      );
-
-    case 'burst':
-      return (
-        <>
-          <div className="form-row">
-            <label className="form-label" title="Number of particles per burst wave">
-              Particles per Wave
-            </label>
-            <div className="form-field">
-              <NumberInput
-                value={config.particlesPerWave ?? 1}
-                onChange={(v) => dispatch({ type: 'SET_BURST', particlesPerWave: v })}
-                min={1}
-                step={1}
-              />
-            </div>
-          </div>
-          <div className="form-row">
-            <label className="form-label" title="Spacing in degrees between particles in a wave">
-              Particle Spacing
-            </label>
-            <div className="form-field">
-              <NumberInput
-                value={config.particleSpacing ?? 0}
-                onChange={(v) => dispatch({ type: 'SET_BURST', particleSpacing: v })}
-                min={0}
-              />
-            </div>
-          </div>
-          <div className="form-row">
-            <label className="form-label" title="Starting angle for each wave">Start Angle</label>
-            <div className="form-field">
-              <NumberInput
-                value={config.angleStart ?? 0}
-                onChange={(v) => dispatch({ type: 'SET_BURST', angleStart: v })}
-              />
-            </div>
-          </div>
-        </>
-      );
-
-    default:
-      return null;
+        </div>
+      </>
+    );
   }
+
+  if (spawn.variant === 'spawnShape' && spawn.shape.type === 'torus') {
+    const s = spawn.shape;
+    const update = (patch: Partial<typeof s>) =>
+      dispatch({ type: 'SET_SPAWN', spawn: { variant: 'spawnShape', shape: { ...s, ...patch } } });
+
+    return (
+      <>
+        <div className="form-row">
+          <label className="form-label">{s.innerRadius > 0 ? 'Ring' : 'Circle'} Position</label>
+          <div className="form-field form-field-pair">
+            <NumberInput value={s.x} onChange={(v) => update({ x: v })} tooltip="X" />
+            <NumberInput value={s.y} onChange={(v) => update({ y: v })} tooltip="Y" />
+          </div>
+        </div>
+        <div className="form-row">
+          <label className="form-label">Radius</label>
+          <div className="form-field form-field-pair">
+            {s.innerRadius > 0 && (
+              <NumberInput value={s.innerRadius} onChange={(v) => update({ innerRadius: v })} min={0} tooltip="Inner Radius" />
+            )}
+            <NumberInput value={s.radius} onChange={(v) => update({ radius: v })} min={0} tooltip="Outer Radius" />
+          </div>
+        </div>
+        <div className="form-row">
+          <label className="form-label">Affect Rotation</label>
+          <div className="form-field">
+            <input type="checkbox" checked={s.affectRotation}
+              onChange={(e) => update({ affectRotation: e.target.checked })} />
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  if (spawn.variant === 'spawnBurst') {
+    const update = (patch: Partial<typeof spawn>) =>
+      dispatch({ type: 'SET_SPAWN', spawn: { ...spawn, ...patch } });
+
+    return (
+      <>
+        <div className="form-row">
+          <label className="form-label">Particle Spacing</label>
+          <div className="form-field">
+            <NumberInput value={spawn.spacing} onChange={(v) => update({ spacing: v })} min={0} tooltip="Degrees between particles" />
+          </div>
+        </div>
+        <div className="form-row">
+          <label className="form-label">Start Angle</label>
+          <div className="form-field">
+            <NumberInput value={spawn.start} onChange={(v) => update({ start: v })} tooltip="Starting angle" />
+          </div>
+        </div>
+        <div className="form-row">
+          <label className="form-label">Distance</label>
+          <div className="form-field">
+            <NumberInput value={spawn.distance} onChange={(v) => update({ distance: v })} min={0} tooltip="Distance from center" />
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  return null;
 }

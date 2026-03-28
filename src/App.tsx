@@ -1,11 +1,11 @@
-import { useEffect, useCallback, useState, useRef } from 'react';
+import { useEffect, useCallback, useState, useRef, useMemo } from 'react';
 import { usePixiEditor } from './pixi/usePixiEditor';
-import { useEmitterConfig } from './hooks/useEmitterConfig';
+import { useEditorState } from './hooks/useEditorState';
 import { useLocalStorage } from './hooks/useLocalStorage';
-import { PRESETS, IMAGE_MAP, DEFAULT_PRESET_ID } from './types/presets';
-import type { LegacyEmitterConfig } from './types/config';
-
-import { loadPresetConfig } from './utils/presetLoader';
+import { DEFAULT_PRESET_ID } from './types/presets';
+import type { EditorState } from './types/editorState';
+import { editorStateToV3, v1ToEditorState } from './utils/configSerializer';
+import { loadPreset } from './utils/presetLoader';
 import { downloadJson } from './utils/fileUtils';
 import { PixiCanvas } from './components/PixiCanvas';
 import { Sidebar } from './components/Sidebar';
@@ -20,12 +20,14 @@ import './App.css';
 
 export function App() {
   const { containerRef, loadConfig, setBackgroundColor, particleCount } = usePixiEditor();
-  const [config, dispatch] = useEmitterConfig();
-  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [state, dispatch] = useEditorState();
   const [stageColor, setStageColor] = useLocalStorage('stageColor', '#999999');
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const initializedRef = useRef(false);
+
+  // Compute V3 config from editor state
+  const v3Config = useMemo(() => editorStateToV3(state), [state]);
 
   // Load initial preset on mount
   useEffect(() => {
@@ -34,102 +36,138 @@ export function App() {
 
     const hash = window.location.hash.replace('#', '');
 
-    // Try loading from localStorage
-    const savedConfig = localStorage.getItem('customConfig');
-    const savedImages = localStorage.getItem('customImages');
-
+    // Try loading from localStorage (new format)
+    const savedState = localStorage.getItem('editorState');
     if (hash) {
-      loadPreset(hash);
-    } else if (savedConfig && savedImages) {
+      handleLoadPreset(hash);
+    } else if (savedState) {
       try {
-        const parsedConfig = JSON.parse(savedConfig) as LegacyEmitterConfig;
-        const parsedImages = JSON.parse(savedImages) as string[];
-        dispatch({ type: 'SET_FULL_CONFIG', config: parsedConfig });
-        setImageUrls(parsedImages);
+        const parsed = JSON.parse(savedState) as EditorState;
+        dispatch({ type: 'SET_STATE', state: parsed });
       } catch {
-        loadPreset(DEFAULT_PRESET_ID);
+        handleLoadPreset(DEFAULT_PRESET_ID);
       }
     } else {
-      loadPreset(DEFAULT_PRESET_ID);
+      // Migrate from old localStorage format
+      const oldConfig = localStorage.getItem('customConfig');
+      const oldImages = localStorage.getItem('customImages');
+      if (oldConfig && oldImages) {
+        try {
+          const migrated = v1ToEditorState(JSON.parse(oldConfig), JSON.parse(oldImages));
+          dispatch({ type: 'SET_STATE', state: migrated });
+          localStorage.removeItem('customConfig');
+          localStorage.removeItem('customImages');
+        } catch {
+          handleLoadPreset(DEFAULT_PRESET_ID);
+        }
+      } else {
+        handleLoadPreset(DEFAULT_PRESET_ID);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Push config + images to PixiJS whenever they change
+  // Push V3 config to PixiJS whenever state changes
   useEffect(() => {
-    if (imageUrls.length === 0) return;
+    // Skip if no textures configured
+    const hasTex =
+      (state.texture.variant === 'textureSingle' && state.texture.texture) ||
+      (state.texture.variant === 'textureRandom' && state.texture.textures.length > 0) ||
+      (state.texture.variant === 'textureOrdered' && state.texture.textures.length > 0) ||
+      (state.texture.variant === 'animatedSingle' && state.texture.anim.textures.length > 0) ||
+      (state.texture.variant === 'animatedRandom' && state.texture.anims.length > 0);
+
+    if (!hasTex) return;
 
     const timer = setTimeout(() => {
-      loadConfig(config, imageUrls);
+      loadConfig(v3Config);
     }, 16);
 
     return () => clearTimeout(timer);
-  }, [config, imageUrls, loadConfig]);
+  }, [v3Config, loadConfig, state.texture]);
 
-  // Persist config to localStorage (debounced)
+  // Persist state to localStorage (debounced)
   useEffect(() => {
     if (!initializedRef.current) return;
     const timer = setTimeout(() => {
-      localStorage.setItem('customConfig', JSON.stringify(config));
-      localStorage.setItem('customImages', JSON.stringify(imageUrls));
+      localStorage.setItem('editorState', JSON.stringify(state));
     }, 300);
     return () => clearTimeout(timer);
-  }, [config, imageUrls]);
+  }, [state]);
 
   // Apply stage color
   useEffect(() => {
     setBackgroundColor(stageColor);
   }, [stageColor, setBackgroundColor]);
 
-  const loadPreset = useCallback(
+  const handleLoadPreset = useCallback(
     async (presetId: string) => {
-      const preset = PRESETS.find((p) => p.id === presetId);
-      if (!preset) return;
-
-      window.location.hash = `#${presetId}`;
-      const presetConfig = await loadPresetConfig(preset.configPath);
-      dispatch({ type: 'SET_FULL_CONFIG', config: presetConfig });
-
-      const urls = preset.imageIds.map((id) => IMAGE_MAP[id]).filter(Boolean) as string[];
-      setImageUrls(urls);
+      const presetState = await loadPreset(presetId);
+      if (presetState) {
+        window.location.hash = `#${presetId}`;
+        dispatch({ type: 'SET_STATE', state: presetState });
+      }
     },
     [dispatch],
   );
 
   const handleRefresh = useCallback(() => {
-    if (imageUrls.length > 0) {
-      loadConfig(config, imageUrls);
-    }
-  }, [config, imageUrls, loadConfig]);
+    loadConfig(v3Config);
+  }, [v3Config, loadConfig]);
 
   const handleDownload = useCallback(() => {
-    downloadJson(config, 'emitter.json');
-  }, [config]);
+    downloadJson(v3Config, 'emitter.json');
+  }, [v3Config]);
 
-  const handleLoadConfig = useCallback(
-    (newConfig: LegacyEmitterConfig) => {
+  const handleLoadState = useCallback(
+    (newState: EditorState) => {
       window.location.hash = '';
-      dispatch({ type: 'SET_FULL_CONFIG', config: newConfig });
+      dispatch({ type: 'SET_STATE', state: newState });
     },
     [dispatch],
   );
 
+  // Image management (works with texture behavior slot)
+  const imageUrls = useMemo(() => {
+    const tex = state.texture;
+    if (tex.variant === 'textureSingle') return tex.texture ? [tex.texture] : [];
+    if (tex.variant === 'textureRandom' || tex.variant === 'textureOrdered') return tex.textures;
+    return [];
+  }, [state.texture]);
+
   const handleAddImage = useCallback(
     (url: string) => {
-      setImageUrls((prev) => [...prev, url]);
+      const tex = state.texture;
+      if (tex.variant === 'textureRandom') {
+        dispatch({ type: 'SET_TEXTURE', texture: { ...tex, textures: [...tex.textures, url] } });
+      } else if (tex.variant === 'textureOrdered') {
+        dispatch({ type: 'SET_TEXTURE', texture: { ...tex, textures: [...tex.textures, url] } });
+      } else if (tex.variant === 'textureSingle') {
+        dispatch({ type: 'SET_TEXTURE', texture: { variant: 'textureSingle', texture: url } });
+      } else {
+        // Switch to textureRandom if currently animated or other
+        dispatch({ type: 'SET_TEXTURE', texture: { variant: 'textureRandom', textures: [url] } });
+      }
     },
-    [],
+    [state.texture, dispatch],
   );
 
-  const handleRemoveImage = useCallback((index: number) => {
-    setImageUrls((prev) => prev.filter((_, i) => i !== index));
-  }, []);
-
-  const handleStageColorChange = useCallback(
-    (color: string) => {
-      setStageColor(color);
+  const handleRemoveImage = useCallback(
+    (index: number) => {
+      const tex = state.texture;
+      if (tex.variant === 'textureRandom') {
+        dispatch({
+          type: 'SET_TEXTURE',
+          texture: { ...tex, textures: tex.textures.filter((_, i) => i !== index) },
+        });
+      } else if (tex.variant === 'textureOrdered') {
+        dispatch({
+          type: 'SET_TEXTURE',
+          texture: { ...tex, textures: tex.textures.filter((_, i) => i !== index) },
+        });
+      }
     },
-    [setStageColor],
+    [state.texture, dispatch],
   );
 
   return (
@@ -141,21 +179,21 @@ export function App() {
           onLoad={() => setConfigDialogOpen(true)}
           onDownload={handleDownload}
         />
-        <ParticleProperties config={config} dispatch={dispatch} />
+        <ParticleProperties config={state} dispatch={dispatch} />
         <ImageManager
           imageUrls={imageUrls}
           onAddImage={() => setImageDialogOpen(true)}
           onRemoveImage={handleRemoveImage}
         />
-        <EmitterProperties config={config} dispatch={dispatch} />
-        <StageProperties stageColor={stageColor} onColorChange={handleStageColorChange} />
+        <EmitterProperties config={state} dispatch={dispatch} />
+        <StageProperties stageColor={stageColor} onColorChange={setStageColor} />
       </Sidebar>
 
       <ConfigDialog
         open={configDialogOpen}
         onClose={() => setConfigDialogOpen(false)}
-        onLoadPreset={loadPreset}
-        onLoadConfig={handleLoadConfig}
+        onLoadPreset={handleLoadPreset}
+        onLoadState={handleLoadState}
       />
       <ImageDialog
         open={imageDialogOpen}

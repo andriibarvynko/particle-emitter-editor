@@ -1,8 +1,7 @@
 import { Application, Assets, Container, Graphics, Rectangle } from 'pixi.js';
 import { Emitter } from '@barvynkoa/particle-emitter';
 import type { EmitterConfigV3 } from '@barvynkoa/particle-emitter';
-import type { LegacyEmitterConfig } from '../types/config';
-import { legacyToV3 } from '../utils/configAdapter';
+import { extractTextureUrls } from '../utils/configSerializer';
 
 export class PixiEditor {
   private app: Application;
@@ -58,24 +57,20 @@ export class PixiEditor {
     this.app.ticker.add(this.update);
   }
 
-  async loadConfig(config: LegacyEmitterConfig, imageUrls: string[]): Promise<void> {
+  async loadConfig(v3Config: EmitterConfigV3): Promise<void> {
     await this._ready;
     if (this._destroyed) return;
 
-    // Ensure all textures are loaded
-    for (const url of imageUrls) {
+    // Pre-load all textures referenced in behaviors
+    const urls = extractTextureUrls(v3Config);
+    for (const url of urls) {
       if (!Assets.cache.has(url)) {
-        await Assets.load(url);
+        try {
+          await Assets.load(url);
+        } catch (e) {
+          console.warn('Failed to load texture:', url, e);
+        }
       }
-    }
-
-    // Convert legacy config to V3 format
-    let v3Config: EmitterConfigV3;
-    try {
-      v3Config = legacyToV3(config, imageUrls);
-    } catch (e) {
-      console.error('Failed to convert config:', e);
-      return;
     }
 
     // Destroy existing emitter
@@ -85,10 +80,14 @@ export class PixiEditor {
     }
 
     // Create new emitter
-    this.emitter = new Emitter(this.emitterContainer, v3Config);
-    this.emitter.emit = true;
-    this.centerEmitter();
-    this.emitterEnableTimer = 0;
+    try {
+      this.emitter = new Emitter(this.emitterContainer, v3Config);
+      this.emitter.emit = true;
+      this.centerEmitter();
+      this.emitterEnableTimer = 0;
+    } catch (e) {
+      console.error('Failed to create emitter:', e);
+    }
   }
 
   async setBackgroundColor(hexColor: string): Promise<void> {

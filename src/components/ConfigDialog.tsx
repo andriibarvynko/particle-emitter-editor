@@ -1,16 +1,17 @@
 import { useRef, useState } from 'react';
 import { PRESETS } from '../types/presets';
 import { readFileAsText } from '../utils/fileUtils';
-import type { LegacyEmitterConfig } from '../types/config';
+import { detectConfigVersion, v3ToEditorState, v1ToEditorState } from '../utils/configSerializer';
+import type { EditorState } from '../types/editorState';
 
 interface Props {
   open: boolean;
   onClose: () => void;
   onLoadPreset: (presetId: string) => void;
-  onLoadConfig: (config: LegacyEmitterConfig) => void;
+  onLoadState: (state: EditorState) => void;
 }
 
-export function ConfigDialog({ open, onClose, onLoadPreset, onLoadConfig }: Props) {
+export function ConfigDialog({ open, onClose, onLoadPreset, onLoadState }: Props) {
   const [selectedPreset, setSelectedPreset] = useState('');
   const [pasteValue, setPasteValue] = useState('');
   const [error, setError] = useState('');
@@ -29,10 +30,21 @@ export function ConfigDialog({ open, onClose, onLoadPreset, onLoadConfig }: Prop
     onClose();
   };
 
+  const parseConfig = (json: unknown): EditorState => {
+    const version = detectConfigVersion(json);
+    if (version === 'v3') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return v3ToEditorState(json as any);
+    } else {
+      // V1 config — no image URLs available from paste/file, textures stay empty
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return v1ToEditorState(json as any, []);
+    }
+  };
+
   const handleConfirm = async () => {
     setError('');
 
-    // Priority: preset > file upload > paste
     if (selectedPreset) {
       onLoadPreset(selectedPreset);
       handleClose();
@@ -43,8 +55,8 @@ export function ConfigDialog({ open, onClose, onLoadPreset, onLoadConfig }: Prop
     if (files && files.length > 0) {
       try {
         const text = await readFileAsText(files[0]!);
-        const config = JSON.parse(text) as LegacyEmitterConfig;
-        onLoadConfig(config);
+        const json = JSON.parse(text);
+        onLoadState(parseConfig(json));
         handleClose();
       } catch {
         setError('Invalid JSON file');
@@ -54,8 +66,8 @@ export function ConfigDialog({ open, onClose, onLoadPreset, onLoadConfig }: Prop
 
     if (pasteValue) {
       try {
-        const config = JSON.parse(pasteValue) as LegacyEmitterConfig;
-        onLoadConfig(config);
+        const json = JSON.parse(pasteValue);
+        onLoadState(parseConfig(json));
         handleClose();
       } catch {
         setError('Invalid JSON');
@@ -85,18 +97,18 @@ export function ConfigDialog({ open, onClose, onLoadPreset, onLoadConfig }: Prop
       </div>
 
       <div className="dialog-field">
-        <label>Upload JSON File</label>
+        <label>Upload JSON File (V1 or V3)</label>
         <input ref={fileInputRef} type="file" accept=".json,application/json" />
       </div>
 
       <div className="dialog-field">
-        <label>Paste JSON</label>
+        <label>Paste JSON (V1 or V3)</label>
         <textarea
           className="textarea-input"
           rows={5}
           value={pasteValue}
           onChange={(e) => setPasteValue(e.target.value)}
-          placeholder='{"alpha": {"start": 1, "end": 0}, ...}'
+          placeholder='{"behaviors": [...]} or {"alpha": {"start": 1, "end": 0}, ...}'
         />
       </div>
 

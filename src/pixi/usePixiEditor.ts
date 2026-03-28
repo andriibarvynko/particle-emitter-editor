@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { PixiEditor } from './PixiEditor';
-import type { LegacyEmitterConfig } from '../types/config';
+import type { EmitterConfigV3 } from '@barvynkoa/particle-emitter';
 
 export function usePixiEditor() {
   const editorRef = useRef<PixiEditor | null>(null);
@@ -32,8 +32,8 @@ export function usePixiEditor() {
     };
   }, []);
 
-  const loadConfig = useCallback(async (config: LegacyEmitterConfig, imageUrls: string[]) => {
-    await editorRef.current?.loadConfig(config, imageUrls);
+  const loadConfig = useCallback(async (v3Config: EmitterConfigV3) => {
+    await editorRef.current?.loadConfig(v3Config);
   }, []);
 
   const setBackgroundColor = useCallback((color: string) => {
