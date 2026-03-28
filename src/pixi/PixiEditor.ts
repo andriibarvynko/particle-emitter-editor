@@ -133,7 +133,15 @@ export class PixiEditor {
   private update = (): void => {
     if (!this.emitter || this._destroyed) return;
 
-    this.emitter.update(this.app.ticker.deltaMS / 1000);
+    try {
+      this.emitter.update(this.app.ticker.deltaMS / 1000);
+    } catch {
+      // Config may produce runtime errors (e.g. invalid path expression).
+      // Kill the broken emitter so it doesn't spam errors every frame.
+      this.emitter.emit = false;
+      this.emitter.cleanup();
+      return;
+    }
 
     // Re-enable emitter after it finishes a cycle
     if (!this.emitter.emit && this.emitterEnableTimer <= 0) {
