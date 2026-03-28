@@ -1,8 +1,6 @@
 .DS_Store
-.grunt
-npm-debug.log
 node_modules
-build
-cache
-components
+dist
+npm-debug.log
 *.map
+.idea
