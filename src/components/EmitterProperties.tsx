@@ -15,7 +15,7 @@ export function EmitterProperties({ config, dispatch }: Props) {
   const spawnType = config.spawn.variant === 'spawnShape'
     ? (config.spawn.shape.type === 'torus'
       ? (config.spawn.shape.innerRadius > 0 ? 'ring' : 'circle')
-      : config.spawn.shape.type)
+      : config.spawn.shape.type) // 'rect' or 'polygonalChain'
     : config.spawn.variant === 'spawnBurst' ? 'burst' : 'point';
 
   return (
@@ -87,6 +87,9 @@ export function EmitterProperties({ config, dispatch }: Props) {
                 case 'burst':
                   dispatch({ type: 'SET_SPAWN', spawn: { variant: 'spawnBurst', spacing: 0, start: 0, distance: 0 } });
                   break;
+                case 'polygonalChain':
+                  dispatch({ type: 'SET_SPAWN', spawn: { variant: 'spawnShape', shape: { type: 'polygonalChain', chains: [[{ x: -100, y: 0 }, { x: 100, y: 0 }]] } } });
+                  break;
               }
             }}>
             <option value="point">Point</option>
@@ -94,6 +97,7 @@ export function EmitterProperties({ config, dispatch }: Props) {
             <option value="circle">Circle</option>
             <option value="ring">Ring</option>
             <option value="burst">Burst</option>
+            <option value="polygonalChain">Polygonal Chain</option>
           </select>
         </div>
       </div>

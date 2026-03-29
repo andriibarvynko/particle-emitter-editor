@@ -98,5 +98,63 @@ export function SpawnTypeFields({ config, dispatch }: Props) {
     );
   }
 
+  if (spawn.variant === 'spawnShape' && spawn.shape.type === 'polygonalChain') {
+    const s = spawn.shape;
+    const setChains = (chains: typeof s.chains) =>
+      dispatch({ type: 'SET_SPAWN', spawn: { variant: 'spawnShape', shape: { type: 'polygonalChain', chains } } });
+
+    return (
+      <>
+        {s.chains.map((chain, ci) => (
+          <div key={ci} className="poly-chain-group">
+            <div className="form-row">
+              <label className="form-label">Chain {ci + 1}</label>
+              <div className="form-field">
+                <button className="btn" style={{ fontSize: 11, padding: '2px 8px' }}
+                  onClick={() => {
+                    const last = chain[chain.length - 1] ?? { x: 0, y: 0 };
+                    const updated = [...s.chains];
+                    updated[ci] = [...chain, { x: last.x + 50, y: last.y }];
+                    setChains(updated);
+                  }}>+ Point</button>
+                {s.chains.length > 1 && (
+                  <button className="btn btn-danger" style={{ fontSize: 11, padding: '2px 8px', marginLeft: 4 }}
+                    onClick={() => setChains(s.chains.filter((_, i) => i !== ci))}>
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
+            {chain.map((pt, pi) => (
+              <div key={pi} className="form-row">
+                <label className="form-label" style={{ fontSize: 10 }}>Point {pi + 1}</label>
+                <div className="form-field form-field-pair">
+                  <NumberInput value={pt.x} onChange={(v) => {
+                    const updated = [...s.chains];
+                    updated[ci] = chain.map((p, i) => i === pi ? { ...p, x: v } : p);
+                    setChains(updated);
+                  }} tooltip="X" />
+                  <NumberInput value={pt.y} onChange={(v) => {
+                    const updated = [...s.chains];
+                    updated[ci] = chain.map((p, i) => i === pi ? { ...p, y: v } : p);
+                    setChains(updated);
+                  }} tooltip="Y" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+        <div className="form-row">
+          <label className="form-label">&nbsp;</label>
+          <div className="form-field">
+            <button className="btn btn-block" onClick={() => setChains([...s.chains, [{ x: 0, y: 0 }, { x: 100, y: 0 }]])}>
+              + Add Chain
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   return null;
 }
