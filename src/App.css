@@ -52,6 +52,8 @@ body {
   font-size: 12px;
   pointer-events: none;
   z-index: 10;
+  display: flex;
+  gap: 12px;
 }
 
 /* Sidebar */

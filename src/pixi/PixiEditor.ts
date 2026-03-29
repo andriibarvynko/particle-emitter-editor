@@ -156,6 +156,10 @@ export class PixiEditor {
     this.onParticleCountUpdate?.(this.emitter.particleCount);
   };
 
+  getFps(): number {
+    return this.app.ticker.FPS;
+  }
+
   private onPointerMove = (event: { global: { x: number; y: number } }): void => {
     if (!this.emitter) return;
     this.emitter.updateOwnerPos(event.global.x, event.global.y);

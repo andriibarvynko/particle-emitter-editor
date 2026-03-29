@@ -24,7 +24,7 @@ import { ImageDialog } from './components/ImageDialog';
 import './App.css';
 
 export function App() {
-  const { containerRef, loadConfig, setBackgroundColor, particleCount } = usePixiEditor();
+  const { containerRef, loadConfig, setBackgroundColor, particleCount, fps } = usePixiEditor();
   const [state, dispatch] = useEditorState();
   const [stageColor, setStageColor] = useLocalStorage('stageColor', '#999999');
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
@@ -140,7 +140,7 @@ export function App() {
 
   return (
     <div className="app-layout">
-      <PixiCanvas containerRef={containerRef} particleCount={particleCount} />
+      <PixiCanvas containerRef={containerRef} particleCount={particleCount} fps={fps} />
       <Sidebar>
         <Toolbar onRefresh={handleRefresh} onLoad={() => setConfigDialogOpen(true)} onDownload={handleDownload} />
         <TextureBehaviorEditor texture={state.texture} dispatch={dispatch} onAddImage={() => setImageDialogOpen(true)} />

@@ -6,6 +6,7 @@ export function usePixiEditor() {
   const editorRef = useRef<PixiEditor | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [particleCount, setParticleCount] = useState(0);
+  const [fps, setFps] = useState(0);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -14,13 +15,13 @@ export function usePixiEditor() {
     const editor = new PixiEditor();
     editorRef.current = editor;
 
-    // Throttle particle count updates to avoid excessive re-renders
-    let lastCountUpdate = 0;
+    let lastStatsUpdate = 0;
     editor.onParticleCountUpdate = (count) => {
       const now = performance.now();
-      if (now - lastCountUpdate > 250) {
-        lastCountUpdate = now;
+      if (now - lastStatsUpdate > 250) {
+        lastStatsUpdate = now;
         setParticleCount(count);
+        setFps(Math.round(editorRef.current?.getFps() ?? 0));
       }
     };
 
@@ -40,5 +41,5 @@ export function usePixiEditor() {
     editorRef.current?.setBackgroundColor(color);
   }, []);
 
-  return { containerRef, loadConfig, setBackgroundColor, particleCount };
+  return { containerRef, loadConfig, setBackgroundColor, particleCount, fps };
 }
