@@ -5,6 +5,8 @@ export interface PresetDefinition {
   label: string;
   configPath: string;
   imageIds: string[];
+  /** Spritesheet JSON paths to pre-load (registers frame names in Assets cache) */
+  spritesheets?: string[];
 }
 
 export const IMAGE_MAP: Record<string, string> = {
@@ -53,6 +55,18 @@ export const PRESETS: PresetDefinition[] = [
   { id: 'snow', label: 'Snow', configPath: `${BASE}presets/snow.json`, imageIds: ['Snow100px'] },
   { id: 'sparks', label: 'Sparks', configPath: `${BASE}presets/sparks.json`, imageIds: ['Sparks'] },
   { id: 'fountain', label: 'Fountain', configPath: `${BASE}presets/fountain.json`, imageIds: ['Sparks'] },
+  // V3 presets (from upstream examples)
+  { id: 'explosionRing', label: 'Explosion Ring', configPath: `${BASE}presets/explosionRing.json`, imageIds: ['particle'] },
+  { id: 'flameAndSmoke', label: 'Flame & Smoke', configPath: `${BASE}presets/flameAndSmoke.json`, imageIds: ['particle', 'Fire'] },
+  { id: 'flamePolygonal', label: 'Flame Polygonal', configPath: `${BASE}presets/flamePolygonal.json`, imageIds: ['particle', 'Fire'] },
+  { id: 'flamePolygonalAdv', label: 'Flame Polygonal Adv', configPath: `${BASE}presets/flamePolygonalAdv.json`, imageIds: ['particle', 'Fire'] },
+  { id: 'flameStepped', label: 'Flame Stepped', configPath: `${BASE}presets/flameStepped.json`, imageIds: ['particle', 'Fire'] },
+  { id: 'flameUneven', label: 'Flame Uneven', configPath: `${BASE}presets/flameUneven.json`, imageIds: ['particle', 'Fire'] },
+  { id: 'bubbleStreamPath', label: 'Bubble Stream (Path)', configPath: `${BASE}presets/bubbleStreamPath.json`, imageIds: ['Bubbles99px'] },
+  // Spritesheet-based presets
+  { id: 'animatedBubbles', label: 'Animated Bubbles', configPath: `${BASE}presets/animatedBubbles.json`, imageIds: [], spritesheets: [`${BASE}images/pop_anim.json`] },
+  { id: 'coins', label: 'Coins', configPath: `${BASE}presets/coins.json`, imageIds: [], spritesheets: [`${BASE}images/gold_anim.json`] },
+  { id: 'spaceshipDestruction', label: 'Spaceship Destruction', configPath: `${BASE}presets/spaceshipDestruction.json`, imageIds: [], spritesheets: [`${BASE}images/spaceship.json`] },
 ];
 
 export const DEFAULT_PRESET_ID = 'pixieDust';

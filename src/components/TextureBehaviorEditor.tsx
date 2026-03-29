@@ -1,5 +1,5 @@
 import { type Dispatch, useState } from 'react';
-import type { TextureBehavior, AnimConfig } from '../types/editorState';
+import type { TextureBehavior, AnimConfig, AnimFrame } from '../types/editorState';
 import type { EditorAction } from '../hooks/useEditorState';
 import { CollapsibleSection } from './CollapsibleSection';
 import { NumberInput } from './NumberInput';
@@ -43,6 +43,10 @@ function getDefaultForVariant(variant: TextureVariant, current: TextureBehavior)
   }
 }
 
+function frameToString(f: AnimFrame): string {
+  return typeof f === 'string' ? f : f.texture;
+}
+
 function getStaticTextures(tex: TextureBehavior): string[] {
   switch (tex.variant) {
     case 'textureSingle':
@@ -51,9 +55,9 @@ function getStaticTextures(tex: TextureBehavior): string[] {
     case 'textureOrdered':
       return tex.textures;
     case 'animatedSingle':
-      return tex.anim.textures;
+      return tex.anim.textures.map(frameToString);
     case 'animatedRandom':
-      return tex.anims.flatMap((a) => a.textures);
+      return tex.anims.flatMap((a) => a.textures.map(frameToString));
   }
 }
 
@@ -238,20 +242,24 @@ function AnimatedEditor({
       </div>
       {anim.textures.length > 0 && (
         <div className="image-list-full">
-          {anim.textures.map((url, i) => (
-            <div key={`${url}-${i}`} className="image-thumbnail image-thumbnail-numbered">
-              <span className="frame-number">{i + 1}</span>
-              <img src={url} alt={`Frame ${i + 1}`} />
-              <button
-                className="image-remove-btn"
-                onClick={() =>
-                  onChange({ ...anim, textures: anim.textures.filter((_, idx) => idx !== i) })
-                }
-              >
-                &times;
-              </button>
-            </div>
-          ))}
+          {anim.textures.map((frame, i) => {
+            const src = frameToString(frame);
+            const count = typeof frame === 'object' ? frame.count : undefined;
+            return (
+              <div key={`${src}-${i}`} className="image-thumbnail image-thumbnail-numbered">
+                <span className="frame-number">{count != null ? `${i + 1} (x${count})` : `${i + 1}`}</span>
+                <img src={src} alt={`Frame ${i + 1}`} />
+                <button
+                  className="image-remove-btn"
+                  onClick={() =>
+                    onChange({ ...anim, textures: anim.textures.filter((_, idx) => idx !== i) })
+                  }
+                >
+                  &times;
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
     </>

@@ -12,10 +12,12 @@ export interface ValueList<T> {
 
 // ─── Animated texture config ───
 
+export type AnimFrame = string | { texture: string; count: number };
+
 export interface AnimConfig {
   framerate: number; // -1 = match particle lifetime
   loop: boolean;
-  textures: string[]; // URLs or asset keys
+  textures: AnimFrame[]; // URLs/asset keys, or objects with repeat count
 }
 
 // ─── Behavior category types (discriminated unions) ───
@@ -110,6 +112,9 @@ export interface EditorState {
   rotation: RotationBehavior;
   spawn: SpawnBehavior;
   blendMode: BlendModeBehavior;
+
+  /** Spritesheet JSON URLs to pre-load (registers frame names in Assets cache) */
+  spritesheets?: string[];
 }
 
 export const DEFAULT_EDITOR_STATE: EditorState = {

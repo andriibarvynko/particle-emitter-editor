@@ -4,6 +4,7 @@ import {
   DEFAULT_EDITOR_STATE,
   type EditorState,
   type AnimConfig,
+  type AnimFrame,
   type SpawnShapeConfig,
 } from '../types/editorState';
 
@@ -391,7 +392,14 @@ function parseAnimConfig(raw: any): AnimConfig {
     framerate: raw?.framerate ?? 24,
     loop: raw?.loop ?? false,
     textures: Array.isArray(raw?.textures)
-      ? raw.textures.map((t: unknown) => (typeof t === 'string' ? t : ''))
+      ? raw.textures.map((t: unknown) => {
+          if (typeof t === 'string') return t;
+          if (typeof t === 'object' && t !== null && 'texture' in t) {
+            const obj = t as { texture: string; count?: number };
+            return obj.count != null ? { texture: obj.texture, count: obj.count } : obj.texture;
+          }
+          return '';
+        }).filter((t: AnimFrame) => t !== '')
       : [],
   };
 }

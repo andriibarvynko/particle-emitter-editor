@@ -78,7 +78,7 @@ export function App() {
       (state.texture.variant === 'animatedRandom' && state.texture.anims.length > 0);
     if (!hasTex) return;
 
-    const timer = setTimeout(() => loadConfig(v3Config), 16);
+    const timer = setTimeout(() => loadConfig(v3Config, state.spritesheets), 16);
     return () => clearTimeout(timer);
   }, [v3Config, loadConfig, state.texture]);
 
@@ -100,7 +100,7 @@ export function App() {
     }
   }, [dispatch]);
 
-  const handleRefresh = useCallback(() => loadConfig(v3Config), [v3Config, loadConfig]);
+  const handleRefresh = useCallback(() => loadConfig(v3Config, state.spritesheets), [v3Config, loadConfig]);
   const handleDownload = useCallback(() => downloadJson(v3Config, 'emitter.json'), [v3Config]);
 
   const handleLoadState = useCallback((newState: EditorState) => {

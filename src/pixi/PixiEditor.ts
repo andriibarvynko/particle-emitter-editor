@@ -57,9 +57,22 @@ export class PixiEditor {
     this.app.ticker.add(this.update);
   }
 
-  async loadConfig(v3Config: EmitterConfigV3): Promise<void> {
+  async loadConfig(v3Config: EmitterConfigV3, spritesheets?: string[]): Promise<void> {
     await this._ready;
     if (this._destroyed) return;
+
+    // Pre-load spritesheets first (registers frame names in Assets cache)
+    if (spritesheets) {
+      for (const sheet of spritesheets) {
+        if (!Assets.cache.has(sheet)) {
+          try {
+            await Assets.load(sheet);
+          } catch (e) {
+            console.warn('Failed to load spritesheet:', sheet, e);
+          }
+        }
+      }
+    }
 
     // Pre-load all textures referenced in behaviors
     const urls = extractTextureUrls(v3Config);
@@ -68,7 +81,7 @@ export class PixiEditor {
         try {
           await Assets.load(url);
         } catch (e) {
-          console.warn('Failed to load texture:', url, e);
+          // Frame names from spritesheets won't be loadable as URLs — that's expected
         }
       }
     }

@@ -33,8 +33,8 @@ export function usePixiEditor() {
     };
   }, []);
 
-  const loadConfig = useCallback(async (v3Config: EmitterConfigV3) => {
-    await editorRef.current?.loadConfig(v3Config);
+  const loadConfig = useCallback(async (v3Config: EmitterConfigV3, spritesheets?: string[]) => {
+    await editorRef.current?.loadConfig(v3Config, spritesheets);
   }, []);
 
   const setBackgroundColor = useCallback((color: string) => {

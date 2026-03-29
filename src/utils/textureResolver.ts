@@ -1,4 +1,4 @@
-import type { EditorState, TextureBehavior, AnimConfig } from '../types/editorState';
+import type { EditorState, TextureBehavior, AnimConfig, AnimFrame } from '../types/editorState';
 
 /**
  * Extracts all texture string references from an EditorState.
@@ -7,6 +7,10 @@ export function extractTextureRefs(state: EditorState): string[] {
   const refs: string[] = [];
   collectFromTextureBehavior(state.texture, refs);
   return [...new Set(refs)];
+}
+
+function getFrameString(frame: AnimFrame): string {
+  return typeof frame === 'string' ? frame : frame.texture;
 }
 
 function collectFromTextureBehavior(tex: TextureBehavior, refs: string[]): void {
@@ -19,11 +23,11 @@ function collectFromTextureBehavior(tex: TextureBehavior, refs: string[]): void 
       refs.push(...tex.textures.filter(Boolean));
       break;
     case 'animatedSingle':
-      refs.push(...tex.anim.textures.filter(Boolean));
+      refs.push(...tex.anim.textures.map(getFrameString).filter(Boolean));
       break;
     case 'animatedRandom':
       for (const anim of tex.anims) {
-        refs.push(...anim.textures.filter(Boolean));
+        refs.push(...anim.textures.map(getFrameString).filter(Boolean));
       }
       break;
   }
@@ -44,12 +48,17 @@ export function replaceTextureRefs(
 }
 
 function resolveUrl(ref: string, urlMap: Map<string, string>): string {
-  // Direct match
   if (urlMap.has(ref)) return urlMap.get(ref)!;
-  // Match by basename
   const basename = ref.split('/').pop() ?? ref;
   if (urlMap.has(basename)) return urlMap.get(basename)!;
   return ref;
+}
+
+function resolveFrame(frame: AnimFrame, urlMap: Map<string, string>): AnimFrame {
+  if (typeof frame === 'string') {
+    return resolveUrl(frame, urlMap);
+  }
+  return { ...frame, texture: resolveUrl(frame.texture, urlMap) };
 }
 
 function replaceInTextureBehavior(
@@ -71,5 +80,5 @@ function replaceInTextureBehavior(
 }
 
 function replaceInAnimConfig(anim: AnimConfig, urlMap: Map<string, string>): AnimConfig {
-  return { ...anim, textures: anim.textures.map((t) => resolveUrl(t, urlMap)) };
+  return { ...anim, textures: anim.textures.map((t) => resolveFrame(t, urlMap)) };
 }
