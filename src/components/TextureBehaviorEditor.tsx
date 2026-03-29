@@ -3,6 +3,7 @@ import type { TextureBehavior, AnimConfig, AnimFrame } from '../types/editorStat
 import type { EditorAction } from '../hooks/useEditorState';
 import { CollapsibleSection } from './CollapsibleSection';
 import { NumberInput } from './NumberInput';
+import { SpritePreview } from './SpritePreview';
 
 interface Props {
   texture: TextureBehavior;
@@ -130,7 +131,7 @@ function SingleTextureEditor({
       <div className="form-field">
         {texture ? (
           <div className="image-thumbnail">
-            <img src={texture} alt="Particle" />
+            <SpritePreview src={texture} alt="Particle" />
             <button
               className="image-remove-btn"
               onClick={() => setTexture({ variant: 'textureSingle', texture: '' })}
@@ -171,7 +172,7 @@ function TextureListEditor({
         <div className="image-list-full">
           {textures.map((url, i) => (
             <div key={`${url}-${i}`} className="image-thumbnail">
-              <img src={url} alt={`Texture ${i}`} />
+              <SpritePreview src={url} alt={`Texture ${i}`} />
               <button
                 className="image-remove-btn"
                 onClick={() => onChange(textures.filter((_, idx) => idx !== i))}
@@ -248,7 +249,7 @@ function AnimatedEditor({
             return (
               <div key={`${src}-${i}`} className="image-thumbnail image-thumbnail-numbered">
                 <span className="frame-number">{count != null ? `${i + 1} (x${count})` : `${i + 1}`}</span>
-                <img src={src} alt={`Frame ${i + 1}`} />
+                <SpritePreview src={src} alt={`Frame ${i + 1}`} />
                 <button
                   className="image-remove-btn"
                   onClick={() =>

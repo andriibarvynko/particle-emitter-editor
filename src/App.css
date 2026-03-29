@@ -284,6 +284,19 @@ input[type='checkbox'] {
   object-fit: contain;
 }
 
+.sprite-preview-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 8px;
+  color: #666;
+  text-align: center;
+  word-break: break-all;
+  padding: 2px;
+}
+
 .image-remove-btn {
   position: absolute;
   top: 0;
